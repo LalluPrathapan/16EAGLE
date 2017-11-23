@@ -71,11 +71,13 @@ r_load <- function(pkg, silent = FALSE) {
 #author: Jakob Schwalb-Willmann
 #arguments:
 #lib: string, vector containing library names
+#get.auto: logical, define, if packages should be installed via pip
+#install.only: logical, define, if packages should be installed only (TRUE) or also be loaded (FALSE)
 #return: module or list of modules
 #bugs: none
 #use: SOURCE
 #depends: reticulate
-py_load <- function(lib){ #returns list of imports
+py_load <- function(lib, get.auto = TRUE, install.only = FALSE){ #returns list of imports
   if(class(lib) != "character"){out("'lib' has to be a 'character' vector.", type=3)}
   r_load("reticulate", silent = TRUE)
   imports <- lapply(lib, function(x){
@@ -88,8 +90,12 @@ py_load <- function(lib){ #returns list of imports
     }
     lib.try <- try(reticulate::import(x), silent = TRUE)
     if(class(lib.try)[1] == "try-error"){
-      system(paste0("pip install ",x))
-      re <- reticulate::import(x)
+      if(get.auto == TRUE){
+        system(paste0("pip install ",x))
+        re <- reticulate::import(x)
+      }else{
+        out(paste0("Module '",x,"' is not installed. Auto-install is not available. Please install modules."),type=3)
+      }
     }else{re <- lib.try}
     if(from){
       g <- parse(text = paste0("re$",y))
@@ -101,5 +107,16 @@ py_load <- function(lib){ #returns list of imports
   })
   if(length(imports) == 1){imports <- imports[[1]]
   }else{imports <- unlist(imports)}
-  return(imports)
+  if(install.only == TRUE){return(TRUE)}else{return(imports)}
+}
+
+
+
+## simplifiy
+is.FALSE <- function(evaluate){if(evaluate == FALSE){return(TRUE)}else{return(FALSE)}}
+is.TRUE <- function(evaluate){if(evaluate == TRUE){return(TRUE)}else{return(FALSE)}}
+
+check.cmd <- function(cmd, dirs = NULL){
+  sc <- try(devtools::system_check(cmd, quiet = TRUE),silent = TRUE)
+  if(class(sc) == "try-error"){return(FALSE)}else{return(TRUE)}
 }
