@@ -30,9 +30,11 @@ out <- function(input, type = 1, msg = FALSE, t = T, sign = ""){
   if(isTRUE(t)){sign <- paste0(toString(Sys.time()), " ", sign)}
   if(is.TRUE(getOption("fM.verbose"))){
     if(type == 2){ warning(paste0(sign,input), call. = FALSE, immediate. = TRUE)}else{
-      if(type == 3){ stop(input,call. = FALSE)} else{
-        if(msg == FALSE) cat(paste0(sign,input),sep="\n") else message(paste0(sign, input))}}
-}}
+      if(type == 3){ stop(input,call. = FALSE)}else{
+        if(msg == FALSE){ cat(paste0(sign,input),sep="\n")}else{
+                          message(paste0(sign, input))}}}
+  }
+}
 
 
 ## r_load()
