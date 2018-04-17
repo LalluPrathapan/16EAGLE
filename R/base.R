@@ -120,3 +120,7 @@ check.cmd <- function(cmd, dirs = NULL){
   sc <- try(devtools::system_check(cmd, quiet = TRUE),silent = TRUE)
   if(class(sc) == "try-error"){return(FALSE)}else{return(TRUE)}
 }
+  
+quiet <- function(expr){
+  return(suppressWarnings(suppressMessages(expr)))
+}
