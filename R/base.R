@@ -26,7 +26,7 @@
 #bugs: none
 #use: SOURCE
 #depens: base
-out <- function(input, type = 1, msg = FALSE, t = T, sign = ""){
+out <- function(input, type = 1, msg = FALSE, t = T, sign = " - "){
   if(isTRUE(t)) sign <- paste0(toString(Sys.time()), " ", sign) 
   if(type == 2){ warning(paste0(sign,input), call. = FALSE, immediate. = TRUE)} else{
     if(type == 3){ stop(input,call. = FALSE)}else{
