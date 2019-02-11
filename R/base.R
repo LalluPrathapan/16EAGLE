@@ -40,13 +40,14 @@ out <- function(input, type = 1, msg = FALSE, t = T, sign = " - "){
 #date_of_creation: 2017-03-01
 #author: Jakob Schwalb-Willmann
 #arguments:
-#pkg: string, vector with package names
+#...: package names
 #silent: logical, turns off prompts
 #return: none
 #bugs: none
 #use: SOURCE
 #depends: base
-r_load <- function(pkg, silent = FALSE) {
+r_load <- function(..., silent = FALSE) {
+  pkg <- unlist(list(...))
   if(class(pkg) != "character"){out("'pkg' has to be a 'character' vector.", type=3)}
   no_return <- lapply(pkg, function(x, s = silent){
     if(!s){out(paste0("Loading package '",x,"'..."),type=1)}
