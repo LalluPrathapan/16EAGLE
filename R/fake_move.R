@@ -16,13 +16,17 @@
     #out_res:     integer, output resolution in minutes, if interpolate = TRUE. If shp_res = "5 min",
     #out_res of 1 would create a 1 min resolution, default is 1.
 
-fake_move <- function(shp, shp_start = "2018-03-03 12:00:00", shp_res = "5 min", indi_name = "fake_bird", interpolate = TRUE, out_res = 1){
+fake_move <- function(shp, shp_start = "2018-03-03 12:00:00", shp_res = "5 min", indi_name = "fake_bird", interpolate = TRUE, out_res = 1,
+                      skips = 0, noise = T){
   if(suppressWarnings(require(move,quietly = TRUE)) == FALSE){
     install.packages("move"); require(move)
   }
   
   #Create sequences
-  dt_seq <- seq.POSIXt(from = as.POSIXct(strptime(shp_start, "%Y-%m-%d %H:%M:%S", tz = "UTC")), by= shp_res, length.out = length(dr_shp@coords[,1]))
+  dt_seq <- seq.POSIXt(from = as.POSIXct(strptime(shp_start, "%Y-%m-%d %H:%M:%S", tz = "UTC")), by= shp_res, length.out = length(dr_shp@coords[,1]) + skips)
+  dt_seq <- dt_seq[sort(sample(1:(length(dr_shp@coords[,1]) + skips), size = length(dr_shp@coords[,1])))]
+  if(isTRUE(noise)) dt_seq <- sort(dt_seq+rnorm(length(dt_seq)))
+  
   indi_seq <- rep(indi_name,length(dr_shp@coords[,1]))
   proj = proj4string(dr_shp)
   
