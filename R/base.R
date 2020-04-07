@@ -188,6 +188,6 @@ quiet <- function(expr){
 search_in_files <- function(term, files){
   unlist(lapply(files, function(x){
     l <- readLines(x, warn = F)
-    grepl(tolower(term), tolower(paste0(l, collapse = " ")))
+    files[grepl(tolower(term), tolower(paste0(l, collapse = " ")))]
   }))
 }
