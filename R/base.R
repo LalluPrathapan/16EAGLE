@@ -10,22 +10,7 @@
 #bugs: unkown
 #use: source
 
-
-## out()
-#type: function
-#description: three-level prompting function for prompting messages, warnings and errors
-#date_of_creation: 2017-03-01
-#author: Jakob Schwalb-Willmann
-#arguments:
-#input: string, prompt message string
-#type: numeric, 1 = LOG, 2 = WARNING, 3 = ERROR
-#ll: global numeric, 1 = all, 2 = WARNINGS+ERRORS, 3 = ONLY ERRORS
-#msg: logical, change from cat to message
-#sign: string, output string prefix
-#return: none
-#bugs: none
-#use: SOURCE
-#depens: base
+## three-level prompting function for prompting messages, warnings and errors
 out <- function(input, type = 1, msg = FALSE, t = T, sign = " - "){
   if(isTRUE(t)) sign <- paste0(toString(Sys.time()), " ", sign) 
   if(type == 2){ warning(paste0(sign,input), call. = FALSE, immediate. = TRUE)} else{
@@ -34,18 +19,7 @@ out <- function(input, type = 1, msg = FALSE, t = T, sign = " - "){
 }
 
 
-## r_load()
-#type: function
-#description: R package manager, loads or installs and loads packages from CRAN
-#date_of_creation: 2017-03-01
-#author: Jakob Schwalb-Willmann
-#arguments:
-#...: package names
-#silent: logical, turns off prompts
-#return: none
-#bugs: none
-#use: SOURCE
-#depends: base
+## loads or installs and loads packages from CRAN
 r_load <- function(..., silent = FALSE) {
   pkg <- unlist(list(...))
   if(class(pkg) != "character"){out("'pkg' has to be a 'character' vector.", type=3)}
@@ -65,19 +39,7 @@ r_load <- function(..., silent = FALSE) {
 }
 
 
-## py_load()
-#type: function
-#description: Python library manager, loads or installs and loads libraries via cmd pip
-#date_of_creation: 2017-11-22
-#author: Jakob Schwalb-Willmann
-#arguments:
-#lib: string, vector containing library names
-#get.auto: logical, define, if packages should be installed via pip
-#install.only: logical, define, if packages should be installed only (TRUE) or also be loaded (FALSE)
-#return: module or list of modules
-#bugs: none
-#use: SOURCE
-#depends: reticulate
+## loads or installs and loads libraries via cmd pip
 py_load <- function(lib, get.auto = TRUE, install.only = FALSE){ #returns list of imports
   if(class(lib) != "character"){out("'lib' has to be a 'character' vector.", type=3)}
   r_load("reticulate", silent = TRUE)
@@ -112,6 +74,103 @@ py_load <- function(lib, get.auto = TRUE, install.only = FALSE){ #returns list o
 }
 
 
+## build and check moveVis
+buildcheck <- function(pkgdir = getwd(), check_pkg = TRUE, test_pkg = TRUE,
+                       test_dir = tempdir(), test_maps = FALSE, preview_site = T,
+                       check_esri = FALSE,
+                       map_token = ""){
+  
+  cat("Building and checking moveVis in '", pkgdir, "'...\n", sep = "")
+  
+  Sys.setenv("moveVis_map_token" = map_token)
+  Sys.setenv("moveVis_test_dir" = test_dir)
+  Sys.setenv("moveVis_n_cores" = 1) #parallel::detectCores()-1)
+  Sys.setenv("moveVis_test_maps" = as.character(test_maps))
+  
+  # functions
+  get_esri_urls <- function(base = "https://services.arcgisonline.com", ep = "/arcgis/rest/"){
+    
+    .get <- function(url){
+      con <- curl::curl(url)
+      return(readLines(con))
+      close(con)
+    }
+    .grep_urls <- function(x) grep("MapServer", x, value = T)
+    .clean_urls <- function(x) as.list(paste0(base, sapply(strsplit(x, '"'), function(y) grep("arcgis", y, value =T))))
+    
+    # get urls
+    x <- .get(paste0(base, ep))
+    
+    # grep sub directories
+    sub <- c()
+    i <- grep("Folders", x)+2
+    end <- FALSE
+    while(isFALSE(end)){
+      if(x[i] == "</ul>") end <- T else{
+        sub <- c(sub, x[i])
+        i <- i+1 
+      }
+    }
+    
+    # extract urls and names
+    urls <- as.list(paste0(.clean_urls(.grep_urls(unlist(c(x, lapply(.clean_urls(sub), .get))))), "/tile/"))
+    keys <- tolower(gsub("/MapServer/tile/", "", gsub(paste0(base, ep, "services/"), "", urls)))
+    names(urls) <- sapply(strsplit(keys, "/"), function(x) x[length(x)], USE.NAMES = F)
+    return(urls)
+  }
+  
+  
+  add_esri_urls <- function(path = "R/moveVis-internal.R"){
+    file_int <- file(path)
+    code_int <- readLines(file_int, warn = F)
+    i <- grep("esri = c", code_int)
+    code_int <- code_int[-c(i:length(code_int))]
+    
+    esri_urls <- get_esri_urls()
+    cat("Found", length(esri_urls), "ESRI base map URLs:\n")
+    cat(paste0(esri_urls, collapse = "\n"))
+    x <- paste0("                                 esri = ",
+                paste0("c(", paste0(mapply(x = esri_urls, y = names(esri_urls), function(x, y) paste0(y, ' = "', x, '"'), USE.NAMES = F), 
+                                    collapse = paste0(",\n", paste0(rep(" ", 42), collapse = ""))), ")))"),
+                "\n}")
+    if(readline("Update 'R/moveVis-internal.R' with displayed URLs? [y/n]") == "y") {
+      writeLines(c(code_int, x), file_int) 
+      cat("ESRI base map URLs have been added.\n")
+    } else{
+      cat("Code remains untouched.\n")
+    }
+    close(file_int)
+  }
+  
+  # add esri URLs
+  if(isTRUE(check_esri)){
+    cat("Adapting internal code to update ESRI REST API URLs...\n")
+    add_esri_urls(paste0(pkgdir, "/R/moveVis-internal.R"))
+  }
+  
+  # build package and site
+  cat("Roxygenizing...\n")
+  devtools::document(pkgdir)
+  cat("Building package...\n")
+  devtools::build(pkgdir, manual = T)
+  cat("Installing package...\n")
+  devtools::install(pkgdir, build = T)
+  cat("Building web page...\n")
+  pkgdown::build_site(pkgdir, examples = F, preview = preview_site)
+  
+  # check and test package
+  if(isTRUE(check_pkg)){
+    cat("Checking...\n")
+    devtools::check(args = "--no-tests")
+  }
+  
+  if(isTRUE(test_pkg)){
+    cat("Testing...\n")
+    devtools::test(pkgdir)
+  }
+  
+  cat("Done.\n")
+}
 
 ## simplifiy
 is.FALSE <- function(evaluate){if(evaluate == FALSE){return(TRUE)}else{return(FALSE)}}
